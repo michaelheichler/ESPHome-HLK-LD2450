@@ -513,4 +513,21 @@ namespace esphome::ld2450
         }
         this->set_zone(zone_id, points);
     }
+
+    void LD2450::set_zone(int zone_id, const std::vector<std::pair<float, float>>& points) {
+        if (zone_id >= zones_.size()) {
+            ESP_LOGE(TAG, "Zone ID %d out of range", zone_id);
+            return;
+        }
+        Zone* zone = zones_[zone_id];
+        std::vector<Point> polygon_points;
+        for (const auto& p : points) {
+            polygon_points.push_back(Point{static_cast<int>(p.first * 1000), static_cast<int>(p.second * 1000)});
+        }
+        if (zone->update_polygon(polygon_points)) {
+            ESP_LOGI(TAG, "Zone %d updated successfully.", zone_id);
+        } else {
+            ESP_LOGE(TAG, "Failed to update Zone %d.", zone_id);
+        }
+    }
 } // namespace esphome::ld2450
