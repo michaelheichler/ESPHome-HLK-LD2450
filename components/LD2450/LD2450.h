@@ -314,8 +314,19 @@ namespace esphome::ld2450
          */
         void set_baud_rate(BaudRate baud_rate);
 
+        /**
+         * @brief Updates the polygon points for a specific zone
+         * @param zone_id ID of the zone to update
+         * @param points Vector of x,y coordinate pairs defining the polygon
+         */
         void set_zone(int zone_id, const std::vector<std::pair<float, float>>& points);
 
+        /**
+         * @brief Service method for updating zone polygons via API
+         * @param zone_id ID of the zone to update
+         * @param x_points Vector of x coordinates
+         * @param y_points Vector of y coordinates
+         */
         void set_zone_service(int zone_id, std::vector<float> x_points, std::vector<float> y_points);
 
     protected:
