@@ -644,8 +644,7 @@ async def zone_to_code(config):
     cg.add(zone.set_target_timeout(config[CONF_TARGET_TIMEOUT]))
 
     # Add points to the polygon of the zone object
-    if isinstance(config[CONF_POLYGON], dict):
-        # Handle template polygon
+    if CONF_LAMBDA in config[CONF_POLYGON]:
         template_ = await cg.process_lambda(
             config[CONF_POLYGON][CONF_LAMBDA],
             [],
@@ -657,7 +656,6 @@ async def zone_to_code(config):
                 config[CONF_POLYGON][CONF_UPDATE_INTERVAL]
             ))
     else:
-        # Handle static points
         for point_config in config[CONF_POLYGON]:
             point_config = point_config[CONF_POINT]
             cg.add(
@@ -679,7 +677,7 @@ async def zone_to_code(config):
         )
         cg.add(zone.set_occupancy_binary_sensor(occupancy_binary_sensor))
 
-    # Add target count sensor sensor if present
+    # Add target count sensor if present
     if target_count_config := config.get(CONF_TARGET_COUNT):
         target_count_config[CONF_NAME] = (
             f"{config[CONF_NAME]} {target_count_config[CONF_NAME]}"
