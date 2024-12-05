@@ -106,6 +106,7 @@ namespace esphome::ld2450
         void loop() override;
         void dump_config() override;
         void set_zone(uint8_t zone_index, const std::vector<std::pair<float, float>> &new_polygon);
+        std::vector<std::pair<float, float>> polygon;
 
         /**
          * @brief Sets the name of this component
