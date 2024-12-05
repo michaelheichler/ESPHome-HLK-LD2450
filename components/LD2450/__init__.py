@@ -445,18 +445,16 @@ async def to_code(config):
     cg.add(var.set_max_distance_margin(config[CONF_MAX_DISTANCE_MARGIN]))
     cg.add(var.set_tilt_angle_margin(config[CONF_TILT_ANGLE_MARGIN]))
 
-    # process target list
+    # Process target list
     if targets_config := config.get(CONF_TARGETS):
-        # Register target on controller
         for index, target_config in enumerate(targets_config):
-            target = yield target_to_code(target_config[CONF_TARGET], index)
+            target = await target_to_code(target_config[CONF_TARGET], index)
             cg.add(var.register_target(target))
 
-    # process zones list
+    # Process zones list
     if zones_config := config.get(CONF_ZONES):
-        # Register target on controller
         for zone_config in zones_config:
-            zone = yield zone_to_code(zone_config[CONF_ZONE])
+            zone = await zone_to_code(zone_config[CONF_ZONE])
             cg.add(var.register_zone(zone))
 
     # Add binary occupancy sensor if present
@@ -466,7 +464,7 @@ async def to_code(config):
         )
         cg.add(var.set_occupancy_binary_sensor(occupancy_binary_sensor))
 
-    # Add target count sensor sensor if present
+    # Add target count sensor if present
     if target_count_config := config.get(CONF_TARGET_COUNT):
         target_count_sensor = yield sensor.new_sensor(target_count_config)
         cg.add(var.set_target_count_sensor(target_count_sensor))
