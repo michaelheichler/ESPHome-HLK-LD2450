@@ -316,6 +316,8 @@ namespace esphome::ld2450
 
         void set_zone(int zone_id, const std::vector<std::pair<float, float>>& points);
 
+        void set_zone_service(int zone_id, std::vector<float> x_points, std::vector<float> y_points);
+
     protected:
         /**
          * @brief Parses the input message and updates related components.

@@ -46,7 +46,7 @@ namespace esphome::ld2450
         // Acquire current switch states and update related components
         read_switch_states();
 
-        register_service(&LD2450::set_zone, "set_zone", {"zone_id", "x_points", "y_points"});
+        register_service(&LD2450::set_zone_service, "set_zone", {"zone_id", "x_points", "y_points"});
     }
 
     void LD2450::dump_config()
@@ -502,20 +502,15 @@ namespace esphome::ld2450
         flush();
     }
 
-    void LD2450::set_zone(int zone_id, const std::vector<std::pair<float, float>>& points) {
-        if (zone_id >= zones_.size()) {
-            ESP_LOGE(TAG, "Zone ID %d out of range", zone_id);
+    void LD2450::set_zone_service(int zone_id, std::vector<float> x_points, std::vector<float> y_points) {
+        if (x_points.size() != y_points.size()) {
+            ESP_LOGE(TAG, "x_points and y_points must be of the same length");
             return;
         }
-        Zone* zone = zones_[zone_id];
-        std::vector<Point> polygon_points;
-        for (const auto& p : points) {
-            polygon_points.push_back(Point{static_cast<int>(p.first * 1000), static_cast<int>(p.second * 1000)});
+        std::vector<std::pair<float, float>> points;
+        for (size_t i = 0; i < x_points.size(); i++) {
+            points.push_back(std::make_pair(x_points[i], y_points[i]));
         }
-        if (zone->update_polygon(polygon_points)) {
-            ESP_LOGI(TAG, "Zone %d updated successfully.", zone_id);
-        } else {
-            ESP_LOGE(TAG, "Failed to update Zone %d.", zone_id);
-        }
+        this->set_zone(zone_id, points);
     }
 } // namespace esphome::ld2450
