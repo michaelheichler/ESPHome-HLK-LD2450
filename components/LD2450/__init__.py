@@ -75,6 +75,7 @@ CONF_BAUD_RATE_SELECT = "baud_rate_select"
 UNIT_METER_PER_SECOND = "m/s"
 ICON_ANGLE_ACUTE = "mdi:angle-acute"
 ICON_ACCOUNT_GROUP = "mdi:account-group"
+CONF_TEMPLATE = "template"
 
 ld2450_ns = cg.esphome_ns.namespace("ld2450")
 LD2450 = ld2450_ns.class_("LD2450", cg.Component, uart.UARTDevice)
@@ -290,9 +291,7 @@ ZONE_SCHEMA = cv.Schema(
                     cv.All(cv.ensure_list(POLYGON_SCHEMA), cv.Length(min=3)),
                     cv.Schema(
                         {
-                            cv.Required(CONF_LAMBDA): cv.templatable(
-                                cv.ensure_list(Point)
-                            ),
+                            cv.Required(CONF_LAMBDA): cv.lambda_,
                             cv.Optional(
                                 CONF_UPDATE_INTERVAL, default="1s"
                             ): cv.positive_time_period_milliseconds,
@@ -568,6 +567,26 @@ def to_code(config):
         )
         cg.add(var.set_baud_rate_select(baud_select))
 
+    if isinstance(config[CONF_POLYGON], dict):
+        # Handle template polygon
+        template_ = await cg.process_lambda(
+            config[CONF_POLYGON][CONF_LAMBDA],
+            [],
+            return_type=cg.std_vector.template(Point)
+        )
+        cg.add(var.set_template_polygon(template_))
+        if CONF_UPDATE_INTERVAL in config[CONF_POLYGON]:
+            cg.add(var.set_template_evaluation_interval(
+                config[CONF_POLYGON][CONF_UPDATE_INTERVAL]
+            ))
+    else:
+        # Handle static points
+        for point in config[CONF_POLYGON]:
+            cg.add(var.append_point(
+                float(point[CONF_POINT][CONF_X]),
+                float(point[CONF_POINT][CONF_Y])
+            ))
+
 
 def target_to_code(config, user_index: int):
     """Code generation for targets within the target list."""
@@ -626,17 +645,16 @@ def zone_to_code(config):
 
     # Add points to the polygon of the zone object
     if CONF_LAMBDA in config.get(CONF_POLYGON, []):
-        template_ = yield cg.process_lambda(
+        template_ = await cg.process_lambda(
             config[CONF_POLYGON][CONF_LAMBDA],
             [],
-            return_type=cg.std_vector.template(Point),
+            return_type=cg.std_vector.template(Point)
         )
         cg.add(zone.set_template_polygon(template_))
-        cg.add(
-            zone.set_template_evaluation_interval(
+        if CONF_UPDATE_INTERVAL in config[CONF_POLYGON]:
+            cg.add(zone.set_template_evaluation_interval(
                 config[CONF_POLYGON][CONF_UPDATE_INTERVAL]
-            )
-        )
+            ))
     else:
         for point_config in config[CONF_POLYGON]:
             point_config = point_config[CONF_POINT]
