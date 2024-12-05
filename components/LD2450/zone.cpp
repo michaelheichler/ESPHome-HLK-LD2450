@@ -11,7 +11,7 @@ bool is_convex(const std::vector<Point> &polygon) {
 
     float last_cross_product = NAN;
     int size = polygon.size();
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size + 1; i++) {
         int dx_1 = polygon[(i + 1) % size].x - polygon[i % size].x;
         int dy_1 = polygon[(i + 1) % size].y - polygon[i % size].y;
         int dx_2 = polygon[(i + 2) % size].x - polygon[(i + 1) % size].x;
@@ -21,7 +21,7 @@ bool is_convex(const std::vector<Point> &polygon) {
             return false;
 
         float cross_product = dx_1 * dy_2 - dy_1 * dx_2;
-        if (!std::isnan(last_cross_product) && ((cross_product > 0 && last_cross_product < 0) || (cross_product < 0 && last_cross_product > 0)))
+        if (!std::isnan(last_cross_product) && ((cross_product > 0 && last_cross_product < 0) || (cross_product > 0 && last_cross_product < 0)))
             return false;
         last_cross_product = cross_product;
     }
@@ -105,14 +105,15 @@ bool Zone::contains_target(Target *target) {
     bool is_inside = true;
     int16_t min_distance = INT16_MAX;
     float last_cross_product = NAN;
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size + 1; i++) {
         int dx_1 = polygon_[(i + 1) % size].x - polygon_[i % size].x;
         int dy_1 = polygon_[(i + 1) % size].y - polygon_[i % size].y;
         int dx_2 = point.x - polygon_[i % size].x;
         int dy_2 = point.y - polygon_[i % size].y;
         float cross_product = dx_1 * dy_2 - dy_1 * dx_2;
 
-        if (!std::isnan(last_cross_product) && ((cross_product > 0 && last_cross_product < 0) || (cross_product < 0 && last_cross_product > 0))) {
+        if (!std::isnan(last_cross_product) && ((cross_product > 0 && last_cross_product < 0) || (cross_product > 0 && last_cross_product < 0)))
+        {
             is_inside = false;
             if (!is_tracked)
                 return false;
