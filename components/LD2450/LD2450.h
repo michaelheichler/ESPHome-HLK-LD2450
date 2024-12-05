@@ -8,6 +8,7 @@
 #include "tracking_mode_switch.h"
 #include "bluetooth_switch.h"
 #include "baud_rate_select.h"
+#include "zone_number.h"
 #ifdef USE_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #endif
@@ -20,6 +21,7 @@
 #ifdef USE_BUTTON
 #include "esphome/components/button/button.h"
 #endif
+#include <map>
 
 #define SENSOR_UNAVAILABLE_TIMEOUT 4000
 #define CONFIG_RECOVERY_INTERVAL 60000
@@ -329,6 +331,25 @@ namespace esphome::ld2450
          */
         void set_zone_service(int zone_id, std::vector<float> x_points, std::vector<float> y_points);
 
+        /**
+         * @brief Registers a number component for zone coordinate control
+         * @param number Pointer to the number component
+         * @param zone_id ID of the zone to control
+         * @param coordinate_type Type of coordinate (x1, y1, x2, y2)
+         */
+        void register_zone_number(ZoneNumber *number, int zone_id, const char* coordinate_type) {
+            if (zone_numbers_.find(zone_id) == zone_numbers_.end()) {
+                zone_numbers_[zone_id] = std::map<std::string, ZoneNumber*>();
+            }
+            zone_numbers_[zone_id][coordinate_type] = number;
+        }
+
+        /**
+         * @brief Updates zone polygon based on registered number components
+         * @param zone_id ID of the zone to update
+         */
+        void update_zone_from_numbers(int zone_id);
+
     protected:
         /**
          * @brief Parses the input message and updates related components.
@@ -441,5 +462,8 @@ namespace esphome::ld2450
 
         /// @brief Select options used for setting the sensors baud rate
         BaudRateSelect *baud_rate_select_ = nullptr;
+
+        /// @brief Map of zone numbers for dynamic control
+        std::map<int, std::map<std::string, ZoneNumber*>> zone_numbers_;
     };
 } // namespace esphome::ld2450

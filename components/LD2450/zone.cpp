@@ -195,7 +195,25 @@ namespace esphome::ld2450
         if (template_polygon_ == nullptr)
             return false;
 
-        std::vector<Point> val = (template_polygon_)();
-        return update_polygon(val);
+        std::vector<Point> new_polygon = (template_polygon_)();
+        
+        // Only update if the polygon is valid and different from current
+        if (is_convex(new_polygon) && new_polygon != polygon_) {
+            polygon_ = new_polygon;
+            return true;
+        }
+        
+        return false;
+    }
+
+    bool operator!=(const std::vector<Point>& lhs, const std::vector<Point>& rhs) {
+        if (lhs.size() != rhs.size())
+            return true;
+        
+        for (size_t i = 0; i < lhs.size(); i++) {
+            if (lhs[i].x != rhs[i].x || lhs[i].y != rhs[i].y)
+                return true;
+        }
+        return false;
     }
 } // namespace esphome::ld2450

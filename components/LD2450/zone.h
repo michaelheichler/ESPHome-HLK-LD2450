@@ -155,6 +155,23 @@ namespace esphome::ld2450
             return polygon_;
         }
 
+        /**
+         * @brief Sets a dynamic polygon update function
+         * @param dynamic_polygon Function that returns vector of points
+         */
+        void set_dynamic_polygon(std::function<std::vector<Point>()> &&dynamic_polygon) {
+            this->template_polygon_ = dynamic_polygon;
+            this->template_evaluation_interval_ = 100; // More frequent updates for dynamic zones
+        }
+
+        /**
+         * @brief Gets the current polygon points
+         * @return Vector of current polygon points
+         */
+        std::vector<Point> get_current_polygon() const {
+            return polygon_;
+        }
+
     protected:
         /**
          * @brief checks if a Target is contained within the zone

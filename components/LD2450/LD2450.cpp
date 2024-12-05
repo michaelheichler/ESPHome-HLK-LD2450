@@ -530,4 +530,22 @@ namespace esphome::ld2450
             ESP_LOGE(TAG, "Failed to update Zone %d.", zone_id);
         }
     }
+
+    void LD2450::update_zone_from_numbers(int zone_id) {
+        if (zone_numbers_.find(zone_id) == zone_numbers_.end()) {
+            ESP_LOGE(TAG, "Zone ID %d not found", zone_id);
+            return;
+        }
+
+        auto &zone_number_map = zone_numbers_[zone_id];
+        std::vector<Point> points;
+        points.push_back(Point(zone_number_map["x1"]->state * 1000, zone_number_map["y1"]->state * 1000));
+        points.push_back(Point(zone_number_map["x2"]->state * 1000, zone_number_map["y1"]->state * 1000));
+        points.push_back(Point(zone_number_map["x2"]->state * 1000, zone_number_map["y2"]->state * 1000));
+        points.push_back(Point(zone_number_map["x1"]->state * 1000, zone_number_map["y2"]->state * 1000));
+
+        if (zones_.size() > zone_id) {
+            zones_[zone_id]->set_dynamic_polygon([points]() { return points; });
+        }
+    }
 } // namespace esphome::ld2450

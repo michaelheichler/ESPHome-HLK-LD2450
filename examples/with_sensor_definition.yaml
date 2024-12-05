@@ -23,23 +23,6 @@ wifi:
 logger:
 
 api:
-  services:
-  - service: set_zone
-    variables:
-      zone_id: int
-      x_points: float[]
-      y_points: float[]
-    then:
-    - lambda: |-
-        if (x_points.size() != y_points.size()) {
-          ESP_LOGE("set_zone", "x_points and y_points must be of the same length");
-          return;
-        }
-        std::vector<std::pair<float, float>> points;
-        for (size_t i = 0; i < x_points.size(); i++) {
-          points.push_back(std::make_pair(x_points[i], y_points[i]));
-        }
-        id(ld2450_component).set_zone(zone_id, points);
 
 improv_serial:
 
@@ -108,6 +91,123 @@ LD2450:
   baud_rate_select:
     name: "Sensor Baud Rate"
 
+  # Added these new sensors
+  occupancy:
+    name: Occupancy
+  target_count:
+    name: Target Count
+
+  # Added target tracking
+  targets:
+  - target:
+      name: "Target 1"
+      id: target1
+      debug: true
+      x_position:
+        id: target1_xpos
+      y_position:
+        id: target1_ypos
+      speed:
+        id: target1_speed
+      distance_resolution:
+        id: target1_res
+      angle:
+        id: target1_angle
+      distance:
+        id: target1_distance
+  - target:
+      name: "Target 2"
+      id: target2
+      x_position:
+        id: target2_xpos
+      y_position:
+        id: target2_ypos
+      speed:
+        id: target2_speed
+      distance_resolution:
+        id: target2_res
+      angle:
+        id: target2_angle
+      distance:
+        id: target2_distance
+  - target:
+      name: "Target 3"
+      id: target3
+      x_position:
+        id: target3_xpos
+      y_position:
+        id: target3_ypos
+      speed:
+        id: target3_speed
+      distance_resolution:
+        id: target3_res
+      angle:
+        id: target3_angle
+      distance:
+        id: target3_distance
+  # Enhanced zones definition
+  zones:
+  - zone:
+      name: "Zone 1"
+      margin: 0.4m
+      polygon:
+      - point:
+          x: !lambda "return id(zone1_x1).state * 1.0;"
+          y: !lambda "return id(zone1_y1).state * 1.0;"
+      - point:
+          x: !lambda "return id(zone1_x1).state * 1.0;"
+          y: !lambda "return id(zone1_y2).state * 1.0;"
+      - point:
+          x: !lambda "return id(zone1_x2).state * 1.0;"
+          y: !lambda "return id(zone1_y2).state * 1.0;"
+      - point:
+          x: !lambda "return id(zone1_x2).state * 1.0;"
+          y: !lambda "return id(zone1_y1).state * 1.0;"
+      occupancy:
+        name: "Zone 1 Occupancy"
+      target_count:
+        name: "Zone 1 Target Count"
+  - zone:
+      name: "Zone 2"
+      margin: 0.4m
+      polygon:
+      - point:
+          x: !lambda "return id(zone2_x1).state * 1.0;"
+          y: !lambda "return id(zone2_y1).state * 1.0;"
+      - point:
+          x: !lambda "return id(zone2_x1).state * 1.0;"
+          y: !lambda "return id(zone2_y2).state * 1.0;"
+      - point:
+          x: !lambda "return id(zone2_x2).state * 1.0;"
+          y: !lambda "return id(zone2_y2).state * 1.0;"
+      - point:
+          x: !lambda "return id(zone2_x2).state * 1.0;"
+          y: !lambda "return id(zone2_y1).state * 1.0;"
+      occupancy:
+        name: "Zone 2 Occupancy"
+      target_count:
+        name: "Zone 2 Target Count"
+  - zone:
+      name: "Zone 3"
+      margin: 0.4m
+      polygon:
+      - point:
+          x: !lambda "return id(zone3_x1).state * 1.0;"
+          y: !lambda "return id(zone3_y1).state * 1.0;"
+      - point:
+          x: !lambda "return id(zone3_x1).state * 1.0;"
+          y: !lambda "return id(zone3_y2).state * 1.0;"
+      - point:
+          x: !lambda "return id(zone3_x2).state * 1.0;"
+          y: !lambda "return id(zone3_y2).state * 1.0;"
+      - point:
+          x: !lambda "return id(zone3_x2).state * 1.0;"
+          y: !lambda "return id(zone3_y1).state * 1.0;"
+      occupancy:
+        name: "Zone 3 Occupancy"
+      target_count:
+        name: "Zone 3 Target Count"
+
 number:
 - platform: template
   name: "Zone 1 X1"
@@ -119,6 +219,10 @@ number:
   optimistic: true
   restore_value: true
   unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone1_x1).state = x;
 - platform: template
   name: "Zone 1 Y1"
   id: zone1_y1
@@ -129,6 +233,10 @@ number:
   optimistic: true
   restore_value: true
   unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone1_y1).state = x;
 - platform: template
   name: "Zone 1 X2"
   id: zone1_x2
@@ -139,6 +247,10 @@ number:
   optimistic: true
   restore_value: true
   unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone1_x2).state = x;
 - platform: template
   name: "Zone 1 Y2"
   id: zone1_y2
@@ -149,6 +261,10 @@ number:
   optimistic: true
   restore_value: true
   unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone1_y2).state = x;
 - platform: template
   name: "Zone 2 X1"
   id: zone2_x1
@@ -159,6 +275,10 @@ number:
   optimistic: true
   restore_value: true
   unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone2_x1).state = x;
 - platform: template
   name: "Zone 2 Y1"
   id: zone2_y1
@@ -169,6 +289,10 @@ number:
   optimistic: true
   restore_value: true
   unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone2_y1).state = x;
 - platform: template
   name: "Zone 2 X2"
   id: zone2_x2
@@ -179,6 +303,10 @@ number:
   optimistic: true
   restore_value: true
   unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone2_x2).state = x;
 - platform: template
   name: "Zone 2 Y2"
   id: zone2_y2
@@ -189,3 +317,63 @@ number:
   optimistic: true
   restore_value: true
   unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone2_y2).state = x;
+- platform: template
+  name: "Zone 3 X1"
+  id: zone3_x1
+  min_value: 0
+  max_value: 10
+  step: 0.1
+  initial_value: 0
+  optimistic: true
+  restore_value: true
+  unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone3_x1).state = x;
+- platform: template
+  name: "Zone 3 Y1"
+  id: zone3_y1
+  min_value: 0
+  max_value: 10
+  step: 0.1
+  initial_value: 0
+  optimistic: true
+  restore_value: true
+  unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone3_y1).state = x;
+- platform: template
+  name: "Zone 3 X2"
+  id: zone3_x2
+  min_value: 0
+  max_value: 10
+  step: 0.1
+  initial_value: 4
+  optimistic: true
+  restore_value: true
+  unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone3_x2).state = x;
+- platform: template
+  name: "Zone 3 Y2"
+  id: zone3_y2
+  min_value: 0
+  max_value: 10
+  step: 0.1
+  initial_value: 2
+  optimistic: true
+  restore_value: true
+  unit_of_measurement: "m"
+  set_action:
+    then:
+    - lambda: |-
+        id(zone3_y2).state = x;
