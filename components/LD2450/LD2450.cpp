@@ -453,7 +453,7 @@ namespace esphome::ld2450
 
         // Retrieve the zone and its polygon
         const auto &zone = this->zones_[zone_index];
-        const auto &polygon = zone->polygon;
+        const auto &polygon = zone->polygon; // Correct pointer access
 
         // Prepare UART data for zone configuration
         std::vector<uint8_t> uart_data;
@@ -486,102 +486,96 @@ namespace esphome::ld2450
         ESP_LOGI(TAG, "Zone %d configuration sent via UART", zone_index);
     }
 
-    ESP_LOGI(TAG, "Updating Zone %d dynamically", zone_index);
-    zones_[zone_index]->polygon = new_polygon;
-
-    send_zone_configuration(zone_index);
-}
-
-void LD2450::set_zone(uint8_t zone_index, const std::vector<std::pair<float, float>> &new_polygon)
-{
-    // Validate the input
-    if (zone_index >= this->zones_.size())
+    void LD2450::set_zone(uint8_t zone_index, const std::vector<std::pair<float, float>> &new_polygon)
     {
-        ESP_LOGW(TAG, "Zone index %d out of bounds", zone_index);
-        return;
-    }
-    if (new_polygon.size() < 3)
-    {
-        ESP_LOGW(TAG, "Polygon must have at least 3 points");
-        return;
-    }
+        // Validate the input
+        if (zone_index >= this->zones_.size())
+        {
+            ESP_LOGW(TAG, "Zone index %d out of bounds", zone_index);
+            return;
+        }
+        if (new_polygon.size() < 3)
+        {
+            ESP_LOGW(TAG, "Polygon must have at least 3 points");
+            return;
+        }
 
-    // Update the polygon for the specified zone
-    ESP_LOGI(TAG, "Updating Zone %d dynamically", zone_index);
-    this->zones_[zone_index]->polygon = new_polygon; // Use '->' for pointer access
+        // Update the polygon for the specified zone
+        ESP_LOGI(TAG, "Updating Zone %d dynamically", zone_index);
+        this->zones_[zone_index]->polygon = new_polygon; // Use '->' for pointer access
 
-    // Send the updated zone configuration via UART
-    this->send_zone_configuration(zone_index);
-}
-
-void LD2450::perform_restart()
-{
-    const uint8_t restart[2] = {COMMAND_RESTART, 0x00};
-    send_config_message(restart, 2);
-    read_switch_states();
-}
-
-void LD2450::perform_factory_reset()
-{
-    const uint8_t reset[2] = {COMMAND_FACTORY_RESET, 0x00};
-    send_config_message(reset, 2);
-    perform_restart();
-}
-
-void LD2450::set_tracking_mode(bool mode)
-{
-    if (mode)
-    {
-        const uint8_t set_tracking_mode[2] = {COMMAND_MULTI_TRACKING_MODE, 0x00};
-        send_config_message(set_tracking_mode, 2);
-    }
-    else
-    {
-        const uint8_t set_tracking_mode[2] = {COMMAND_SINGLE_TRACKING_MODE, 0x00};
-        send_config_message(set_tracking_mode, 2);
+        // Send the updated zone configuration via UART
+        this->send_zone_configuration(zone_index);
     }
 
-    const uint8_t request_tracking_mode[2] = {COMMAND_READ_TRACKING_MODE, 0x00};
-    send_config_message(request_tracking_mode, 2);
-}
+    void LD2450::perform_restart()
+    {
+        const uint8_t restart[2] = {COMMAND_RESTART, 0x00};
+        send_config_message(restart, 2);
+        read_switch_states();
+    }
 
-void LD2450::set_bluetooth_state(bool state)
-{
-    const uint8_t set_bt[4] = {COMMAND_BLUETOOTH, 0x00, state, 0x00};
-    send_config_message(set_bt, 4);
-    perform_restart();
-}
+    void LD2450::perform_factory_reset()
+    {
+        const uint8_t reset[2] = {COMMAND_FACTORY_RESET, 0x00};
+        send_config_message(reset, 2);
+        perform_restart();
+    }
 
-void LD2450::read_switch_states()
-{
-    const uint8_t request_tracking_mode[2] = {COMMAND_READ_TRACKING_MODE, 0x00};
-    send_config_message(request_tracking_mode, 2);
-    log_bluetooth_mac();
-}
+    void LD2450::set_tracking_mode(bool mode)
+    {
+        if (mode)
+        {
+            const uint8_t set_tracking_mode[2] = {COMMAND_MULTI_TRACKING_MODE, 0x00};
+            send_config_message(set_tracking_mode, 2);
+        }
+        else
+        {
+            const uint8_t set_tracking_mode[2] = {COMMAND_SINGLE_TRACKING_MODE, 0x00};
+            send_config_message(set_tracking_mode, 2);
+        }
 
-void LD2450::set_baud_rate(BaudRate baud_rate)
-{
-    const uint8_t set_baud_rate[4] = {COMMAND_SET_BAUD_RATE, 0x00, baud_rate, 0x00};
-    send_config_message(set_baud_rate, 4);
-    perform_restart();
-}
+        const uint8_t request_tracking_mode[2] = {COMMAND_READ_TRACKING_MODE, 0x00};
+        send_config_message(request_tracking_mode, 2);
+    }
 
-void LD2450::write_command(uint8_t *msg, int len)
-{
-    // Write frame header
-    uart_->write_array({0xFD, 0xFC, 0xFB, 0xFA});
+    void LD2450::set_bluetooth_state(bool state)
+    {
+        const uint8_t set_bt[4] = {COMMAND_BLUETOOTH, 0x00, state, 0x00};
+        send_config_message(set_bt, 4);
+        perform_restart();
+    }
 
-    // Write message length
-    uart_->write(static_cast<uint8_t>(len));
-    uart_->write(static_cast<uint8_t>(len >> 8));
+    void LD2450::read_switch_states()
+    {
+        const uint8_t request_tracking_mode[2] = {COMMAND_READ_TRACKING_MODE, 0x00};
+        send_config_message(request_tracking_mode, 2);
+        log_bluetooth_mac();
+    }
 
-    // Write message content
-    uart_->write_array(msg, len);
+    void LD2450::set_baud_rate(BaudRate baud_rate)
+    {
+        const uint8_t set_baud_rate[4] = {COMMAND_SET_BAUD_RATE, 0x00, baud_rate, 0x00};
+        send_config_message(set_baud_rate, 4);
+        perform_restart();
+    }
 
-    // Write frame end
-    uart_->write_array({0x04, 0x03, 0x02, 0x01});
+    void LD2450::write_command(uint8_t *msg, int len)
+    {
+        // Write frame header
+        uart_->write_array({0xFD, 0xFC, 0xFB, 0xFA});
 
-    uart_->flush();
-}
+        // Write message length
+        uart_->write(static_cast<uint8_t>(len));
+        uart_->write(static_cast<uint8_t>(len >> 8));
+
+        // Write message content
+        uart_->write_array(msg, len);
+
+        // Write frame end
+        uart_->write_array({0x04, 0x03, 0x02, 0x01});
+
+        uart_->flush();
+    }
 
 } // namespace esphome::ld2450
