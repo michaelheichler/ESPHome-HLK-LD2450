@@ -436,8 +436,8 @@ CONFIG_SCHEMA = cv.All(
 async def to_code(config):
     """Code generation for the LD2450 component."""
     var = cg.new_Pvariable(config[CONF_ID])
-    yield cg.register_component(var, config)
-    yield uart.register_uart_device(var, config)
+    await cg.register_component(var, config)
+    await uart.register_uart_device(var, config)
 
     cg.add(var.set_name(config[CONF_NAME]))
     cg.add(var.set_flip_x_axis(config[CONF_FLIP_X_AXIS]))
@@ -459,14 +459,12 @@ async def to_code(config):
 
     # Add binary occupancy sensor if present
     if occupancy_config := config.get(CONF_OCCUPANCY):
-        occupancy_binary_sensor = yield binary_sensor.new_binary_sensor(
-            occupancy_config
-        )
+        occupancy_binary_sensor = await binary_sensor.new_binary_sensor(occupancy_config)
         cg.add(var.set_occupancy_binary_sensor(occupancy_binary_sensor))
 
     # Add target count sensor if present
     if target_count_config := config.get(CONF_TARGET_COUNT):
-        target_count_sensor = yield sensor.new_sensor(target_count_config)
+        target_count_sensor = await sensor.new_sensor(target_count_config)
         cg.add(var.set_target_count_sensor(target_count_sensor))
 
     # Different configurations for limit number components
@@ -493,14 +491,14 @@ async def to_code(config):
         if limit_config := config.get(key):
             # Add number component
             if isinstance(limit_config, dict):
-                limit_number = yield number.new_number(
+                limit_number = await number.new_number(
                     limit_config,
                     min_value=value["min"],
                     max_value=value["max"],
                     step=limit_config[CONF_STEP],
                 )
-                yield cg.register_parented(limit_number, config[CONF_ID])
-                yield cg.register_component(limit_number, limit_config)
+                await cg.register_parented(limit_number, config[CONF_ID])
+                await cg.register_component(limit_number, limit_config)
                 cg.add(limit_number.set_initial_state(limit_config[CONF_INITIAL_VALUE]))
                 cg.add(limit_number.set_restore(limit_config[CONF_RESTORE_VALUE]))
                 cg.add(limit_number.set_type(value["type_enum"]))
@@ -523,33 +521,33 @@ async def to_code(config):
 
     # Add sensor restart button if present
     if restart_config := config.get(CONF_RESTART_BUTTON):
-        restart_button = yield button.new_button(restart_config)
+        restart_button = await button.new_button(restart_config)
         cg.add(var.set_restart_button(restart_button))
 
     # Add sensor factory reset button if present
     if reset_config := config.get(CONF_FACTORY_RESET_BUTTON):
-        reset_button = yield button.new_button(reset_config)
+        reset_button = await button.new_button(reset_config)
         cg.add(var.set_factory_reset_button(reset_button))
 
     # Add tracking mode switch
     if tracking_mode_config := config.get(CONF_TRACKING_MODE_SWITCH):
         mode_switch = cg.new_Pvariable(tracking_mode_config[CONF_ID])
-        yield cg.register_parented(mode_switch, config[CONF_ID])
-        yield switch.register_switch(mode_switch, tracking_mode_config)
+        await cg.register_parented(mode_switch, config[CONF_ID])
+        await switch.register_switch(mode_switch, tracking_mode_config)
         cg.add(var.set_tracking_mode_switch(mode_switch))
 
     # Add bluetooth switch
     if bluetooth_config := config.get(CONF_BLUETOOTH_SWITCH):
         bluetooth_switch = cg.new_Pvariable(bluetooth_config[CONF_ID])
-        yield cg.register_parented(bluetooth_switch, config[CONF_ID])
-        yield switch.register_switch(bluetooth_switch, bluetooth_config)
+        await cg.register_parented(bluetooth_switch, config[CONF_ID])
+        await switch.register_switch(bluetooth_switch, bluetooth_config)
         cg.add(var.set_bluetooth_switch(bluetooth_switch))
 
     # Add baud rate select
     if select_config := config.get(CONF_BAUD_RATE_SELECT):
         baud_select = cg.new_Pvariable(select_config[CONF_ID])
-        yield cg.register_parented(baud_select, config[CONF_ID])
-        yield select.register_select(
+        await cg.register_parented(baud_select, config[CONF_ID])
+        await select.register_select(
             baud_select,
             select_config,
             options=[
@@ -565,34 +563,35 @@ async def to_code(config):
         )
         cg.add(var.set_baud_rate_select(baud_select))
 
-    # Move the polygon handling inside the async function
-    if hasattr(config, 'CONF_POLYGON') and isinstance(config[CONF_POLYGON], dict):
-        # Handle template polygon
-        template_ = await cg.process_lambda(
-            config[CONF_POLYGON][CONF_LAMBDA],
-            [],
-            return_type=cg.std_vector.template(Point)
-        )
-        cg.add(var.set_template_polygon(template_))
-        if CONF_UPDATE_INTERVAL in config[CONF_POLYGON]:
-            cg.add(var.set_template_evaluation_interval(
-                config[CONF_POLYGON][CONF_UPDATE_INTERVAL]
-            ))
-    elif hasattr(config, 'CONF_POLYGON'):
-        # Handle static points
-        for point in config[CONF_POLYGON]:
-            cg.add(var.append_point(
-                float(point[CONF_POINT][CONF_X]),
-                float(point[CONF_POINT][CONF_Y])
-            ))
+    # Handle polygon configuration
+    if CONF_POLYGON in config:
+        if isinstance(config[CONF_POLYGON], dict):
+            # Handle template polygon
+            template_ = await cg.process_lambda(
+                config[CONF_POLYGON][CONF_LAMBDA],
+                [],
+                return_type=cg.std_vector.template(Point)
+            )
+            cg.add(var.set_template_polygon(template_))
+            if CONF_UPDATE_INTERVAL in config[CONF_POLYGON]:
+                cg.add(var.set_template_evaluation_interval(
+                    config[CONF_POLYGON][CONF_UPDATE_INTERVAL]
+                ))
+        else:
+            # Handle static points
+            for point in config[CONF_POLYGON]:
+                cg.add(var.append_point(
+                    float(point[CONF_POINT][CONF_X]),
+                    float(point[CONF_POINT][CONF_Y])
+                ))
 
     return var
 
 
-def target_to_code(config, user_index: int):
+async def target_to_code(config, user_index: int):
     """Code generation for targets within the target list."""
     target = cg.new_Pvariable(config[CONF_ID])
-    yield cg.register_component(target, config)
+    await cg.register_component(target, config)
 
     # Generate name if not provided
     if CONF_NAME not in config:
@@ -617,8 +616,8 @@ def target_to_code(config, user_index: int):
             )
 
             sensor_var = cg.new_Pvariable(sensor_config[CONF_ID])
-            yield cg.register_component(sensor_var, sensor_config)
-            yield sensor.register_sensor(sensor_var, sensor_config)
+            await cg.register_component(sensor_var, sensor_config)
+            await sensor.register_sensor(sensor_var, sensor_config)
 
             if SENSOR == CONF_X_SENSOR:
                 cg.add(target.set_x_position_sensor(sensor_var))
@@ -673,7 +672,7 @@ async def zone_to_code(config):
             if occupancy_config.get(CONF_NAME, "") != ""
             else config[CONF_NAME]
         )
-        occupancy_binary_sensor = yield binary_sensor.new_binary_sensor(
+        occupancy_binary_sensor = await binary_sensor.new_binary_sensor(
             occupancy_config
         )
         cg.add(zone.set_occupancy_binary_sensor(occupancy_binary_sensor))
@@ -685,7 +684,7 @@ async def zone_to_code(config):
             if target_count_config.get(CONF_NAME, "") != ""
             else config[CONF_NAME]
         )
-        target_count_sensor = yield sensor.new_sensor(target_count_config)
+        target_count_sensor = await sensor.new_sensor(target_count_config)
         cg.add(zone.set_target_count_sensor(target_count_sensor))
 
     return zone
