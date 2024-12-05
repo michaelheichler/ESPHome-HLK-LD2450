@@ -433,7 +433,7 @@ CONFIG_SCHEMA = cv.All(
 )
 
 
-def to_code(config):
+async def to_code(config):
     """Code generation for the LD2450 component."""
     var = cg.new_Pvariable(config[CONF_ID])
     yield cg.register_component(var, config)
@@ -635,7 +635,7 @@ def target_to_code(config, user_index: int):
     return target
 
 
-def zone_to_code(config):
+async def zone_to_code(config):
     """Code generation for zones and their sub-sensors."""
     zone = cg.new_Pvariable(config[CONF_ID])
 
@@ -644,7 +644,8 @@ def zone_to_code(config):
     cg.add(zone.set_target_timeout(config[CONF_TARGET_TIMEOUT]))
 
     # Add points to the polygon of the zone object
-    if CONF_LAMBDA in config.get(CONF_POLYGON, []):
+    if isinstance(config[CONF_POLYGON], dict):
+        # Handle template polygon
         template_ = await cg.process_lambda(
             config[CONF_POLYGON][CONF_LAMBDA],
             [],
@@ -656,12 +657,13 @@ def zone_to_code(config):
                 config[CONF_POLYGON][CONF_UPDATE_INTERVAL]
             ))
     else:
+        # Handle static points
         for point_config in config[CONF_POLYGON]:
             point_config = point_config[CONF_POINT]
-
             cg.add(
                 zone.append_point(
-                    (float(point_config[CONF_X])), float(point_config[CONF_Y])
+                    float(point_config[CONF_X]),
+                    float(point_config[CONF_Y])
                 )
             )
 
