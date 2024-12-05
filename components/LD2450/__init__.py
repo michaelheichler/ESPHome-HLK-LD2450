@@ -565,7 +565,8 @@ async def to_code(config):
         )
         cg.add(var.set_baud_rate_select(baud_select))
 
-    if isinstance(config[CONF_POLYGON], dict):
+    # Move the polygon handling inside the async function
+    if hasattr(config, 'CONF_POLYGON') and isinstance(config[CONF_POLYGON], dict):
         # Handle template polygon
         template_ = await cg.process_lambda(
             config[CONF_POLYGON][CONF_LAMBDA],
@@ -577,13 +578,15 @@ async def to_code(config):
             cg.add(var.set_template_evaluation_interval(
                 config[CONF_POLYGON][CONF_UPDATE_INTERVAL]
             ))
-    else:
+    elif hasattr(config, 'CONF_POLYGON'):
         # Handle static points
         for point in config[CONF_POLYGON]:
             cg.add(var.append_point(
                 float(point[CONF_POINT][CONF_X]),
                 float(point[CONF_POINT][CONF_Y])
             ))
+
+    return var
 
 
 def target_to_code(config, user_index: int):
