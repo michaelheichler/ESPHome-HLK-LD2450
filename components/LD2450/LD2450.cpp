@@ -293,265 +293,281 @@ namespace esphome::ld2450
         }
     }
 
-    void LD2450::process_message(uint8_t *msg, int len) {
-    // Update sensor availability and reset configuration mode
-    sensor_available_ = true;
-    last_message_received_ = millis();
-    configuration_mode_ = false;
+    void LD2450::process_message(uint8_t *msg, int len)
+    {
+        // Update sensor availability and reset configuration mode
+        sensor_available_ = true;
+        last_message_received_ = millis();
+        configuration_mode_ = false;
 
-    // Process up to 3 targets
-    for (int i = 0; i < 3; i++) {
-        int offset = 8 * i;
+        // Process up to 3 targets
+        for (int i = 0; i < 3; i++)
+        {
+            int offset = 8 * i;
 
-        // Parse target data from message
-        int16_t x = msg[offset + 1] << 8 | msg[offset + 0];
-        if (msg[offset + 1] & 0x80) {
-            x = -x + 0x8000;
+            // Parse target data from message
+            int16_t x = msg[offset + 1] << 8 | msg[offset + 0];
+            if (msg[offset + 1] & 0x80)
+            {
+                x = -x + 0x8000;
+            }
+            int16_t y = (msg[offset + 3] << 8 | msg[offset + 2]);
+            if (y != 0)
+            {
+                y -= 0x8000;
+            }
+            int speed = msg[offset + 5] << 8 | msg[offset + 4];
+            if (msg[offset + 5] & 0x80)
+            {
+                speed = -speed + 0x8000;
+            }
+            int distance_resolution = msg[offset + 7] << 8 | msg[offset + 6];
+
+            // Flip x-axis if required
+            x = x * (flip_x_axis_ ? -1 : 1);
+
+            // Filter targets based on max distance and tilt angle
+            float angle = -(atan2(y, x) * (180 / M_PI) - 90);
+            if ((y <= max_detection_distance_ || (targets_[i]->is_present() && y <= max_detection_distance_ + max_distance_margin_)) &&
+                (angle <= max_detection_tilt_angle_ || (targets_[i]->is_present() && angle <= max_detection_tilt_angle_ + tilt_angle_margin_)) &&
+                (angle >= min_detection_tilt_angle_ || (targets_[i]->is_present() && angle >= min_detection_tilt_angle_ - tilt_angle_margin_)))
+            {
+                // Update target with new values
+                targets_[i]->update_values(x, y, speed, distance_resolution);
+            }
+            else if (y > max_detection_distance_ + max_distance_margin_ ||
+                     angle > max_detection_tilt_angle_ + tilt_angle_margin_ ||
+                     angle < min_detection_tilt_angle_ - tilt_angle_margin_)
+            {
+                // Clear target if out of bounds
+                targets_[i]->clear();
+            }
         }
-        int16_t y = (msg[offset + 3] << 8 | msg[offset + 2]);
-        if (y != 0) {
-            y -= 0x8000;
+
+        // Update total target count
+        int target_count = 0;
+        for (Target *target : targets_)
+        {
+            target_count += target->is_present();
         }
-        int speed = msg[offset + 5] << 8 | msg[offset + 4];
-        if (msg[offset + 5] & 0x80) {
-            speed = -speed + 0x8000;
-        }
-        int distance_resolution = msg[offset + 7] << 8 | msg[offset + 6];
+        is_occupied_ = target_count > 0;
 
-        // Flip x-axis if required
-        x = x * (flip_x_axis_ ? -1 : 1);
-
-        // Filter targets based on max distance and tilt angle
-        float angle = -(atan2(y, x) * (180 / M_PI) - 90);
-        if ((y <= max_detection_distance_ || (targets_[i]->is_present() && y <= max_detection_distance_ + max_distance_margin_)) &&
-            (angle <= max_detection_tilt_angle_ || (targets_[i]->is_present() && angle <= max_detection_tilt_angle_ + tilt_angle_margin_)) &&
-            (angle >= min_detection_tilt_angle_ || (targets_[i]->is_present() && angle >= min_detection_tilt_angle_ - tilt_angle_margin_))) {
-            // Update target with new values
-            targets_[i]->update_values(x, y, speed, distance_resolution);
-        } else if (y > max_detection_distance_ + max_distance_margin_ ||
-                   angle > max_detection_tilt_angle_ + tilt_angle_margin_ ||
-                   angle < min_detection_tilt_angle_ - tilt_angle_margin_) {
-            // Clear target if out of bounds
-            targets_[i]->clear();
-        }
-    }
-
-    // Update total target count
-    int target_count = 0;
-    for (Target *target : targets_) {
-        target_count += target->is_present();
-    }
-    is_occupied_ = target_count > 0;
-
-    // Update binary sensor with occupancy status
+        // Update binary sensor with occupancy status
 #ifdef USE_BINARY_SENSOR
-    if (occupancy_binary_sensor_ != nullptr) {
-        occupancy_binary_sensor_->publish_state(is_occupied_);
-    }
+        if (occupancy_binary_sensor_ != nullptr)
+        {
+            occupancy_binary_sensor_->publish_state(is_occupied_);
+        }
 #endif
 
-    // Update numeric sensor with target count
+        // Update numeric sensor with target count
 #ifdef USE_SENSOR
-    if (target_count_sensor_ != nullptr && target_count_sensor_->raw_state != target_count) {
-        target_count_sensor_->publish_state(target_count);
-    }
+        if (target_count_sensor_ != nullptr && target_count_sensor_->raw_state != target_count)
+        {
+            target_count_sensor_->publish_state(target_count);
+        }
 #endif
 
-    // Update zones and related components
-    for (Zone *zone : zones_) {
+        // Update zones and related components
+        for (Zone *zone : zones_)
+        {
             zone->update(targets_, sensor_available_);
         }
     }
 
-
-
-    void LD2450::process_config_message(uint8_t *msg, int len) {
-    // Remove command from Queue upon receiving acknowledgment
-    if (!command_queue_.empty() && command_queue_.front()[0] == msg[0] && msg[1] == 0x01) {
-        command_queue_.erase(command_queue_.begin());
-        command_send_retries_ = 0;
-        command_last_sent_ = 0;
-    }
-
-    // Handle specific commands
-    if (msg[0] == COMMAND_ENTER_CONFIG && msg[1] == 0x01) {
-        configuration_mode_ = true;
-    }
-
-    if (msg[0] == COMMAND_LEAVE_CONFIG && msg[1] == 0x01) {
-        configuration_mode_ = false;
-    }
-
-    if ((msg[0] == COMMAND_FACTORY_RESET || msg[0] == COMMAND_RESTART) && msg[1] == 0x01) {
-        configuration_mode_ = false;
-
-        // Wait for the sensor to restart and apply configuration
-        is_applying_changes_ = true;
-        apply_change_lockout_ = millis();
-    }
-
-    if (msg[0] == COMMAND_READ_VERSION && msg[1] == 0x01) {
-        ESP_LOGI(TAG, "Sensor Firmware-Version: V%X.%02X.%02X%02X%02X%02X",
-                 msg[7], msg[6], msg[11], msg[10], msg[9], msg[8]);
-    }
-
-    if (msg[0] == COMMAND_READ_MAC && msg[1] == 0x01) {
-        bool bt_enabled = !(msg[4] == 0x08 && msg[5] == 0x05 && msg[6] == 0x04 &&
-                            msg[7] == 0x03 && msg[8] == 0x02 && msg[9] == 0x01);
-
-        if (bluetooth_switch_ != nullptr) {
-            bluetooth_switch_->publish_state(bt_enabled);
+    void LD2450::process_config_message(uint8_t *msg, int len)
+    {
+        // Remove command from Queue upon receiving acknowledgment
+        if (!command_queue_.empty() && command_queue_.front()[0] == msg[0] && msg[1] == 0x01)
+        {
+            command_queue_.erase(command_queue_.begin());
+            command_send_retries_ = 0;
+            command_last_sent_ = 0;
         }
 
-        if (bt_enabled) {
-            ESP_LOGI(TAG, "Sensor MAC-Address: %02X:%02X:%02X:%02X:%02X:%02X",
-                     msg[4], msg[5], msg[6], msg[7], msg[8], msg[9]);
-        } else {
-            ESP_LOGI(TAG, "Sensor MAC-Address: Bluetooth disabled!");
+        // Handle specific commands
+        if (msg[0] == COMMAND_ENTER_CONFIG && msg[1] == 0x01)
+        {
+            configuration_mode_ = true;
         }
-    }
 
-    if (msg[0] == COMMAND_READ_TRACKING_MODE && msg[1] == 0x01) {
-        bool multi_tracking_state = msg[4] == 0x02;
-        if (tracking_mode_switch_ != nullptr) {
+        if (msg[0] == COMMAND_LEAVE_CONFIG && msg[1] == 0x01)
+        {
+            configuration_mode_ = false;
+        }
+
+        if ((msg[0] == COMMAND_FACTORY_RESET || msg[0] == COMMAND_RESTART) && msg[1] == 0x01)
+        {
+            configuration_mode_ = false;
+
+            // Wait for the sensor to restart and apply configuration
+            is_applying_changes_ = true;
+            apply_change_lockout_ = millis();
+        }
+
+        if (msg[0] == COMMAND_READ_VERSION && msg[1] == 0x01)
+        {
+            ESP_LOGI(TAG, "Sensor Firmware-Version: V%X.%02X.%02X%02X%02X%02X",
+                     msg[7], msg[6], msg[11], msg[10], msg[9], msg[8]);
+        }
+
+        if (msg[0] == COMMAND_READ_MAC && msg[1] == 0x01)
+        {
+            bool bt_enabled = !(msg[4] == 0x08 && msg[5] == 0x05 && msg[6] == 0x04 &&
+                                msg[7] == 0x03 && msg[8] == 0x02 && msg[9] == 0x01);
+
+            if (bluetooth_switch_ != nullptr)
+            {
+                bluetooth_switch_->publish_state(bt_enabled);
+            }
+
+            if (bt_enabled)
+            {
+                ESP_LOGI(TAG, "Sensor MAC-Address: %02X:%02X:%02X:%02X:%02X:%02X",
+                         msg[4], msg[5], msg[6], msg[7], msg[8], msg[9]);
+            }
+            else
+            {
+                ESP_LOGI(TAG, "Sensor MAC-Address: Bluetooth disabled!");
+            }
+        }
+
+        if (msg[0] == COMMAND_READ_TRACKING_MODE && msg[1] == 0x01)
+        {
+            bool multi_tracking_state = msg[4] == 0x02;
+            if (tracking_mode_switch_ != nullptr)
+            {
                 tracking_mode_switch_->publish_state(multi_tracking_state);
             }
         }
     }
 
-    void LD2450::send_zone_configuration(uint8_t zone_index) {
-    if (zone_index >= zones_.size()) {
-        ESP_LOGW(TAG, "Zone index %d is out of bounds", zone_index);
-        return;
-    }
+    void LD2450::send_zone_configuration(uint8_t zone_index)
+    {
+        // Validate the zone index
+        if (zone_index >= this->zones_.size())
+        {
+            ESP_LOGW(TAG, "Zone index %d out of bounds", zone_index);
+            return;
+        }
 
-    const auto &zone = zones_[zone_index];
-    const auto &polygon = zone->polygon;
+        // Retrieve the zone and its polygon
+        const auto &zone = this->zones_[zone_index];
+        const auto &polygon = zone->polygon;
 
-    std::vector<uint8_t> uart_data;
+        // Prepare UART data for zone configuration
+        std::vector<uint8_t> uart_data;
 
-    // Command header
-    uart_data.push_back(0xFD);  // Start byte
-    uart_data.push_back(0xFC);  // Command type
+        // Command header
+        uart_data.push_back(0xFD); // Start byte
+        uart_data.push_back(0xFC); // Command type
 
-    // Zone index
-    uart_data.push_back(zone_index);
+        // Zone index
+        uart_data.push_back(zone_index);
 
-    // Number of points in the polygon
-    uart_data.push_back(polygon.size());
+        // Number of points in the polygon
+        uart_data.push_back(polygon.size());
 
-    // Add the points to the UART data
-    for (const auto &point : polygon) {
-        int16_t x = static_cast<int16_t>(point.first * 100);  // Convert meters to cm
-        int16_t y = static_cast<int16_t>(point.second * 100); // Convert meters to cm
-        uart_data.push_back((x >> 8) & 0xFF);  // High byte of X
-        uart_data.push_back(x & 0xFF);         // Low byte of X
-        uart_data.push_back((y >> 8) & 0xFF);  // High byte of Y
-        uart_data.push_back(y & 0xFF);         // Low byte of Y
-    }
+        // Add the points to the UART data
+        for (const auto &point : polygon)
+        {
+            int16_t x = static_cast<int16_t>(point.first * 100);  // Convert meters to cm
+            int16_t y = static_cast<int16_t>(point.second * 100); // Convert meters to cm
+            uart_data.push_back((x >> 8) & 0xFF);                 // High byte of X
+            uart_data.push_back(x & 0xFF);                        // Low byte of X
+            uart_data.push_back((y >> 8) & 0xFF);                 // High byte of Y
+            uart_data.push_back(y & 0xFF);                        // Low byte of Y
+        }
 
-    uart_->write_array(uart_data);
-    uart_->flush();
+        // Send the command via UART
+        this->uart_->write_array(uart_data);
+        this->uart_->flush();
 
         ESP_LOGI(TAG, "Zone %d configuration sent via UART", zone_index);
     }
 
-    void LD2450::set_zone(uint8_t zone_index, const std::vector<std::pair<float, float>> &new_polygon) {
-    if (zone_index >= zones_.size()) {
-        ESP_LOGW(TAG, "Zone index %d is out of bounds", zone_index);
-        return;
-    }
-
-    if (new_polygon.size() < 3) {
-        ESP_LOGW(TAG, "Polygon must have at least 3 points");
-        return;
-    }
-
     ESP_LOGI(TAG, "Updating Zone %d dynamically", zone_index);
     zones_[zone_index]->polygon = new_polygon;
 
     send_zone_configuration(zone_index);
-    }
+}
 
-    void LD2450::set_zone(uint8_t zone_index, const std::vector<std::pair<float, float>> &new_polygon) {
-    if (zone_index >= zones_.size()) {
-        ESP_LOGW(TAG, "Zone index %d is out of bounds", zone_index);
+void LD2450::set_zone(uint8_t zone_index, const std::vector<std::pair<float, float>> &new_polygon)
+{
+    // Validate the input
+    if (zone_index >= this->zones_.size())
+    {
+        ESP_LOGW(TAG, "Zone index %d out of bounds", zone_index);
         return;
     }
-
-    if (new_polygon.size() < 3) {
+    if (new_polygon.size() < 3)
+    {
         ESP_LOGW(TAG, "Polygon must have at least 3 points");
         return;
     }
 
+    // Update the polygon for the specified zone
     ESP_LOGI(TAG, "Updating Zone %d dynamically", zone_index);
-    zones_[zone_index]->polygon = new_polygon;
+    this->zones_[zone_index]->polygon = new_polygon; // Use '->' for pointer access
 
-    send_zone_configuration(zone_index);
-    }
+    // Send the updated zone configuration via UART
+    this->send_zone_configuration(zone_index);
+}
 
-    void LD2450::perform_restart() 
+void LD2450::perform_restart()
+{
+    const uint8_t restart[2] = {COMMAND_RESTART, 0x00};
+    send_config_message(restart, 2);
+    read_switch_states();
+}
+
+void LD2450::perform_factory_reset()
+{
+    const uint8_t reset[2] = {COMMAND_FACTORY_RESET, 0x00};
+    send_config_message(reset, 2);
+    perform_restart();
+}
+
+void LD2450::set_tracking_mode(bool mode)
+{
+    if (mode)
     {
-        const uint8_t restart[2] = {COMMAND_RESTART, 0x00};
-        send_config_message(restart, 2);
-        read_switch_states();
+        const uint8_t set_tracking_mode[2] = {COMMAND_MULTI_TRACKING_MODE, 0x00};
+        send_config_message(set_tracking_mode, 2);
     }
-
-
-
-    void LD2450::perform_restart()
+    else
     {
-        const uint8_t restart[2] = {COMMAND_RESTART, 0x00};
-        send_config_message(restart, 2);
-        read_switch_states();
+        const uint8_t set_tracking_mode[2] = {COMMAND_SINGLE_TRACKING_MODE, 0x00};
+        send_config_message(set_tracking_mode, 2);
     }
 
-    void LD2450::perform_factory_reset()
-    {
-        const uint8_t reset[2] = {COMMAND_FACTORY_RESET, 0x00};
-        send_config_message(reset, 2);
-        perform_restart();
-    }
+    const uint8_t request_tracking_mode[2] = {COMMAND_READ_TRACKING_MODE, 0x00};
+    send_config_message(request_tracking_mode, 2);
+}
 
-    void LD2450::set_tracking_mode(bool mode)
-    {
-        if (mode)
-        {
-            const uint8_t set_tracking_mode[2] = {COMMAND_MULTI_TRACKING_MODE, 0x00};
-            send_config_message(set_tracking_mode, 2);
-        }
-        else
-        {
-            const uint8_t set_tracking_mode[2] = {COMMAND_SINGLE_TRACKING_MODE, 0x00};
-            send_config_message(set_tracking_mode, 2);
-        }
+void LD2450::set_bluetooth_state(bool state)
+{
+    const uint8_t set_bt[4] = {COMMAND_BLUETOOTH, 0x00, state, 0x00};
+    send_config_message(set_bt, 4);
+    perform_restart();
+}
 
-        const uint8_t request_tracking_mode[2] = {COMMAND_READ_TRACKING_MODE, 0x00};
-        send_config_message(request_tracking_mode, 2);
-    }
+void LD2450::read_switch_states()
+{
+    const uint8_t request_tracking_mode[2] = {COMMAND_READ_TRACKING_MODE, 0x00};
+    send_config_message(request_tracking_mode, 2);
+    log_bluetooth_mac();
+}
 
-    void LD2450::set_bluetooth_state(bool state)
-    {
-        const uint8_t set_bt[4] = {COMMAND_BLUETOOTH, 0x00, state, 0x00};
-        send_config_message(set_bt, 4);
-        perform_restart();
-    }
+void LD2450::set_baud_rate(BaudRate baud_rate)
+{
+    const uint8_t set_baud_rate[4] = {COMMAND_SET_BAUD_RATE, 0x00, baud_rate, 0x00};
+    send_config_message(set_baud_rate, 4);
+    perform_restart();
+}
 
-    void LD2450::read_switch_states()
-    {
-        const uint8_t request_tracking_mode[2] = {COMMAND_READ_TRACKING_MODE, 0x00};
-        send_config_message(request_tracking_mode, 2);
-        log_bluetooth_mac();
-    }
-
-    void LD2450::set_baud_rate(BaudRate baud_rate)
-    {
-        const uint8_t set_baud_rate[4] = {COMMAND_SET_BAUD_RATE, 0x00, baud_rate, 0x00};
-        send_config_message(set_baud_rate, 4);
-        perform_restart();
-    }
-
-    void LD2450::write_command(uint8_t *msg, int len) {
+void LD2450::write_command(uint8_t *msg, int len)
+{
     // Write frame header
     uart_->write_array({0xFD, 0xFC, 0xFB, 0xFA});
 
@@ -565,7 +581,7 @@ namespace esphome::ld2450
     // Write frame end
     uart_->write_array({0x04, 0x03, 0x02, 0x01});
 
-        uart_->flush();
-    }
-    
+    uart_->flush();
+}
+
 } // namespace esphome::ld2450
