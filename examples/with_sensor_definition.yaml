@@ -1,5 +1,5 @@
 substitutions:
-  name: esphome-web-208480
+  name: mmwave-presence-2450-treppe
   friendly_name: mmwave-Presense-2450-Treppe
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
@@ -23,8 +23,14 @@ wifi:
 logger:
 
 api:
-
-ota:
+  services:
+  - service: set_zone
+    variables:
+      zone_id: int
+      points: list
+    then:
+    - lambda: |-
+        id(ld2450_component).set_zone(zone_id, points);
 
 improv_serial:
 
@@ -32,7 +38,7 @@ light:
 - platform: status_led
   name: ESP32 LED
   pin: GPIO14
-  internal: False
+  internal: false
   restore_mode: ALWAYS_OFF
 
 i2c:
@@ -42,7 +48,10 @@ i2c:
   scan: true
 
 external_components:
-- source: github://TillFleisch/ESPHome-HLK-LD2450@main
+- source:
+    type: git
+    url: https://github.com/michaelheichler/ESPHome-HLK-LD2450
+  components: [ LD2450 ]
 
 uart:
   id: uart_bus
@@ -62,6 +71,7 @@ uart:
   data_bits: 8
 
 LD2450:
+  id: ld2450_component
   uart_id: uart_bus
   flip_x_axis: true
   fast_off_detection: true
@@ -88,50 +98,6 @@ LD2450:
 
   baud_rate_select:
     name: "Sensor Baud Rate"
-
-  zones:
-  - zone:
-      name: "Zone 1"
-      polygon:
-      - point:
-          x: !lambda "return id(zone1_x1).state;"
-          y: !lambda "return id(zone1_y1).state;"
-      - point:
-          x: !lambda "return id(zone1_x2).state;"
-          y: !lambda "return id(zone1_y1).state;"
-      - point:
-          x: !lambda "return id(zone1_x2).state;"
-          y: !lambda "return id(zone1_y2).state;"
-      - point:
-          x: !lambda "return id(zone1_x1).state;"
-          y: !lambda "return id(zone1_y2).state;"
-      occupancy:
-        id: zone1_occupancy
-        name: "Zone 1 Occupancy"
-      target_count:
-        id: zone1_target_count
-        name: "Zone 1 Target Count"
-  - zone:
-      name: "Zone 2"
-      polygon:
-      - point:
-          x: !lambda "return id(zone2_x1).state;"
-          y: !lambda "return id(zone2_y1).state;"
-      - point:
-          x: !lambda "return id(zone2_x2).state;"
-          y: !lambda "return id(zone2_y1).state;"
-      - point:
-          x: !lambda "return id(zone2_x2).state;"
-          y: !lambda "return id(zone2_y2).state;"
-      - point:
-          x: !lambda "return id(zone2_x1).state;"
-          y: !lambda "return id(zone2_y2).state;"
-      occupancy:
-        id: zone2_occupancy
-        name: "Zone 2 Occupancy"
-      target_count:
-        id: zone2_target_count
-        name: "Zone 2 Target Count"
 
 number:
 - platform: template
@@ -214,3 +180,23 @@ number:
   optimistic: true
   restore_value: true
   initial_value: 2
+
+interval:
+- interval: 10s
+  then:
+  - lambda: |-
+      std::vector<std::pair<float, float>> zone1_polygon = {
+        {id(zone1_x1).state, id(zone1_y1).state},
+        {id(zone1_x2).state, id(zone1_y1).state},
+        {id(zone1_x2).state, id(zone1_y2).state},
+        {id(zone1_x1).state, id(zone1_y2).state},
+      };
+      id(ld2450_component).set_zone(0, zone1_polygon);
+
+      std::vector<std::pair<float, float>> zone2_polygon = {
+        {id(zone2_x1).state, id(zone2_y1).state},
+        {id(zone2_x2).state, id(zone2_y1).state},
+        {id(zone2_x2).state, id(zone2_y2).state},
+        {id(zone2_x1).state, id(zone2_y2).state},
+      };
+      id(ld2450_component).set_zone(1, zone2_polygon);

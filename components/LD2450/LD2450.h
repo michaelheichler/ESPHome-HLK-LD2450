@@ -314,6 +314,8 @@ namespace esphome::ld2450
          */
         void set_baud_rate(BaudRate baud_rate);
 
+        void set_zone(int zone_id, const std::vector<std::pair<float, float>>& points);
+
     protected:
         /**
          * @brief Parses the input message and updates related components.

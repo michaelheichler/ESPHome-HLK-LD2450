@@ -45,6 +45,14 @@ namespace esphome::ld2450
 #endif
         // Acquire current switch states and update related components
         read_switch_states();
+
+        api::global_api_server->register_service<SetZoneRequest, SetZoneResponse>(
+            "set_zone",
+            [this](const SetZoneRequest& req, SetZoneResponse& res) {
+                this->set_zone(req.zone_id(), req.points());
+                res.set_success(true);
+            }
+        );
     }
 
     void LD2450::dump_config()
@@ -498,5 +506,22 @@ namespace esphome::ld2450
         write_array({0x04, 0x03, 0x02, 0x01});
 
         flush();
+    }
+
+    void LD2450::set_zone(int zone_id, const std::vector<std::pair<float, float>>& points) {
+        if (zone_id >= zones_.size()) {
+            ESP_LOGE(TAG, "Zone ID %d out of range", zone_id);
+            return;
+        }
+        Zone* zone = zones_[zone_id];
+        std::vector<Point> polygon_points;
+        for (const auto& p : points) {
+            polygon_points.push_back(Point{static_cast<int>(p.first * 1000), static_cast<int>(p.second * 1000)});
+        }
+        if (zone->update_polygon(polygon_points)) {
+            ESP_LOGI(TAG, "Zone %d updated successfully.", zone_id);
+        } else {
+            ESP_LOGE(TAG, "Failed to update Zone %d.", zone_id);
+        }
     }
 } // namespace esphome::ld2450
