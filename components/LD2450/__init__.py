@@ -682,12 +682,12 @@ def zone_to_code(config):
         }
     ),
 )
-def update_polygon_to_code(config, action_id, template_arg, args):
+async def update_polygon_to_code(config, action_id, template_arg, args):
     """Code generation for the update (template) polygon action."""
-    parent = yield cg.get_variable(config[CONF_ID])
+    parent = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, parent)
 
-    template_ = yield cg.templatable(
+    template_ = await cg.templatable(
         config[CONF_POLYGON], args, cg.std_vector.template(Point)
     )
     cg.add(var.set_polygon(template_))

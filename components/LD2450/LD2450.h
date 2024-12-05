@@ -105,6 +105,7 @@ namespace esphome::ld2450
         void setup() override;
         void loop() override;
         void dump_config() override;
+        void set_zone(uint8_t zone_index, const std::vector<std::pair<float, float>> &new_polygon);
 
         /**
          * @brief Sets the name of this component
@@ -313,6 +314,9 @@ namespace esphome::ld2450
          * @param baud_rate New Baud Rate
          */
         void set_baud_rate(BaudRate baud_rate);
+
+    private:
+        void send_zone_configuration(uint8_t zone_index);
 
     protected:
         /**
