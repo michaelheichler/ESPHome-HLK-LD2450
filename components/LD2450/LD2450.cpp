@@ -46,13 +46,7 @@ namespace esphome::ld2450
         // Acquire current switch states and update related components
         read_switch_states();
 
-        api::global_api_server->register_service<SetZoneRequest, SetZoneResponse>(
-            "set_zone",
-            [this](const SetZoneRequest& req, SetZoneResponse& res) {
-                this->set_zone(req.zone_id(), req.points());
-                res.set_success(true);
-            }
-        );
+        register_service(&LD2450::set_zone, "set_zone", {"zone_id", "x_points", "y_points"});
     }
 
     void LD2450::dump_config()

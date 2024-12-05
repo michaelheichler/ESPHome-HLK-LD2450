@@ -27,18 +27,9 @@ api:
   - service: set_zone
     variables:
       zone_id: int
-      x_points: float[]
-      y_points: float[]
+      points: "std::vector<std::pair<float, float>>"
     then:
     - lambda: |-
-        if (x_points.size() != y_points.size()) {
-          ESP_LOGE("set_zone", "x_points and y_points must be of the same length");
-          return;
-        }
-        std::vector<std::pair<float, float>> points;
-        for (size_t i = 0; i < x_points.size(); i++) {
-          points.push_back(std::make_pair(x_points[i], y_points[i]));
-        }
         id(ld2450_component).set_zone(zone_id, points);
 
 improv_serial:
