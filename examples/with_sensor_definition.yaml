@@ -112,100 +112,80 @@ number:
 - platform: template
   name: "Zone 1 X1"
   id: zone1_x1
-  unit_of_measurement: "m"
   min_value: 0
   max_value: 10
   step: 0.1
+  initial_value: 0
   optimistic: true
   restore_value: true
-  initial_value: 0
+  unit_of_measurement: "m"
 - platform: template
   name: "Zone 1 Y1"
   id: zone1_y1
-  unit_of_measurement: "m"
   min_value: 0
   max_value: 10
   step: 0.1
+  initial_value: 0
   optimistic: true
   restore_value: true
-  initial_value: 0
+  unit_of_measurement: "m"
 - platform: template
   name: "Zone 1 X2"
   id: zone1_x2
-  unit_of_measurement: "m"
   min_value: 0
   max_value: 10
   step: 0.1
+  initial_value: 2
   optimistic: true
   restore_value: true
-  initial_value: 2
+  unit_of_measurement: "m"
 - platform: template
   name: "Zone 1 Y2"
   id: zone1_y2
-  unit_of_measurement: "m"
   min_value: 0
   max_value: 10
   step: 0.1
+  initial_value: 2
   optimistic: true
   restore_value: true
-  initial_value: 2
+  unit_of_measurement: "m"
 - platform: template
   name: "Zone 2 X1"
   id: zone2_x1
-  unit_of_measurement: "m"
   min_value: 0
   max_value: 10
   step: 0.1
+  initial_value: 2
   optimistic: true
   restore_value: true
-  initial_value: 2
+  unit_of_measurement: "m"
 - platform: template
   name: "Zone 2 Y1"
   id: zone2_y1
-  unit_of_measurement: "m"
   min_value: 0
   max_value: 10
   step: 0.1
+  initial_value: 0
   optimistic: true
   restore_value: true
-  initial_value: 0
+  unit_of_measurement: "m"
 - platform: template
   name: "Zone 2 X2"
   id: zone2_x2
-  unit_of_measurement: "m"
   min_value: 0
   max_value: 10
   step: 0.1
+  initial_value: 4
   optimistic: true
   restore_value: true
-  initial_value: 4
+  unit_of_measurement: "m"
 - platform: template
   name: "Zone 2 Y2"
   id: zone2_y2
-  unit_of_measurement: "m"
   min_value: 0
   max_value: 10
   step: 0.1
+  initial_value: 2
   optimistic: true
   restore_value: true
-  initial_value: 2
-
-interval:
-- interval: 10s
-  then:
-  - lambda: |-
-      std::vector<std::pair<float, float>> zone1_polygon = {
-        {id(zone1_x1).state, id(zone1_y1).state},
-        {id(zone1_x2).state, id(zone1_y1).state},
-        {id(zone1_x2).state, id(zone1_y2).state},
-        {id(zone1_x1).state, id(zone1_y2).state},
-      };
-      id(ld2450_component).set_zone(0, zone1_polygon);
-
-      std::vector<std::pair<float, float>> zone2_polygon = {
-        {id(zone2_x1).state, id(zone2_y1).state},
-        {id(zone2_x2).state, id(zone2_y1).state},
-        {id(zone2_x2).state, id(zone2_y2).state},
-        {id(zone2_x1).state, id(zone2_y2).state},
-      };
-      id(ld2450_component).set_zone(1, zone2_polygon);
+  unit_of_measurement: "m"
